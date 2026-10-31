@@ -1,0 +1,72 @@
+AGGIORNAMENTO PREVENTIVI PRO — ELENCO PUNTATO E IMPORTAZIONE PDF
+
+MODIFICHE INCLUSE
+
+1. Anteprima e stampa del preventivo
+- Ogni voce di lavoro compilata nell'editor appare nel documento come elemento di un elenco puntato.
+- Il pallino è un elemento esplicito del documento, non il marcatore automatico del browser: rimane quindi visibile anche quando le righe dell'elenco sono impaginate con flex.
+- Le interruzioni di riga inserite nella descrizione restano nella stessa voce puntata.
+- I costi interni continuano a non essere stampati.
+
+2. Importazione dei preventivi
+- Il parser riconosce trattini e diversi marcatori comuni (pallino, quadratino, numerazione e simboli di elenco) all'inizio delle righe.
+- Ogni riga che inizia con un marcatore apre una nuova voce nell'editor.
+- Le righe successive prive di un nuovo marcatore vengono aggiunte alla descrizione della voce precedente, mantenendo un'interruzione di riga nella stessa casella.
+- Sono gestiti anche i casi in cui il marcatore del PDF/OCR viene estratto su una riga separata dal testo.
+- Se manca l'intestazione ARTICOLO/IMPORTO, l'estrazione può iniziare dalla prima voce riconosciuta tramite trattino.
+- Se il documento non contiene marcatori, il comportamento precedente che mantiene separate le righe viene conservato.
+- L'importazione continua a riconoscere i totali e a tenere fuori dalle descrizioni i dati di testata e il riepilogo economico.
+
+3. Compatibilità con le funzionalità già incluse
+- Campi cliente separati e facoltativi: telefono, e-mail e PEC.
+- Catalogo dell'editor filtrato per categoria, combinando voci del catalogo e descrizioni dei preventivi salvati della stessa categoria.
+- I dati dei singoli account restano separati; il codice delle funzionalità è condiviso dall'applicazione quando questa versione viene pubblicata.
+
+VERIFICHE E LIMITI
+- `npm test`: 43 test superati.
+- `npm run build`: non completato in questo ambiente perché Vite non è installato (`vite: not found`).
+- I test coprono l'estrazione testuale e simulazioni di righe PDF con coordinate, inclusi trattini, continuazioni, marcatori separati e PDF senza intestazione di tabella.
+- Non è stato fornito un PDF reale di esempio in questa richiesta: per questo non posso attestare il risultato su ogni possibile impaginazione o scansione. La schermata di controllo dell'importazione permette comunque di verificare e correggere le caselle prima di salvare.
+- Nessuna modifica diretta al database o ai dati degli account.
+
+PUBBLICAZIONE
+Questo pacchetto contiene il progetto aggiornato. Per rendere le modifiche visibili nell'app online, integrare il progetto nel repository e avviare il workflow GitHub Pages sul ramo di pubblicazione.
+
+
+AGGIORNAMENTO — VISIBILITÀ PREZZI PER SINGOLA ATTIVITÀ
+- Accanto al prezzo di ogni attività è presente un pulsante con icona occhio / occhio barrato.
+- Il pulsante decide se il prezzo di quella specifica riga viene mostrato nell’anteprima e nella stampa PDF.
+- I prezzi sono nascosti per impostazione predefinita, anche nei preventivi già esistenti.
+- La scelta viene salvata con il preventivo, conservata quando lo si riapre o duplica e non modifica il totale generale.
+- Nessuna modifica al database: la scelta è un dato contenuto nelle righe del preventivo già salvate nel workspace.
+
+
+AGGIORNAMENTO GRAFICO COLONNA IMPORTO
+- Il documento riserva sempre una colonna destra fissa per gli importi delle singole attività.
+- Titolo, sottotitolo, testo introduttivo, descrizioni e note finali restano confinati nella colonna articolo e non invadono l'area degli importi.
+- La dicitura IMPORTO nella fascia blu viene mostrata solo se almeno una voce ha un prezzo valido e l'opzione di visualizzazione attiva.
+- Se tutti i prezzi delle voci sono nascosti o vuoti, la fascia blu mostra soltanto ARTICOLO; la colonna destra resta comunque riservata per mantenere l'allineamento.
+- Verifiche: 47 test automatici superati. Build Vite non eseguita perché node_modules non è installato in questo ambiente.
+
+CORREZIONE STAMPA — CRONOLOGIA PREVENTIVI
+- Prima di aprire la stampa viene attivata la modalità print-quote-only.
+- Durante la stampa tutti gli elementi dell'interfaccia diventano invisibili, tranne il documento A4 #quote-document e i suoi contenuti.
+- La cronologia delle modifiche, le versioni precedenti e i pulsanti Ripristina non vengono inclusi nel PDF, anche quando sono presenti e aperti nell'editor.
+- Alla chiusura della finestra di stampa, l'evento afterprint ripristina il titolo della pagina e rimuove la modalità di stampa, lasciando la cronologia disponibile nell'editor.
+- Test automatici: 47 superati su 47.
+- La build Vite non è stata eseguita in questo ambiente perché le dipendenze non sono installate (vite: not found).
+- Nessuna modifica al database.
+
+AGGIORNAMENTO CRONOLOGIA E INTESTAZIONE ARTICOLO
+- Nell'editor dei preventivi salvati la cronologia è ora nascosta per impostazione predefinita e si apre soltanto tramite il pulsante dedicato "Cronologia".
+- La tendina si richiude quando si esce dall'editor e dopo aver selezionato una versione da ripristinare.
+- Nell'anteprima e nella stampa, quando non è presente alcun importo visibile, l'intestazione "ARTICOLO" resta allineata a sinistra; l'allineamento a destra è riservato alla colonna "IMPORTO".
+- Verifica automatica aggiornata: 49 test superati.
+
+
+CORREZIONE PULSANTE CRONOLOGIA E RIPRISTINO
+- Nell'editor è presente un pulsante dedicato e sempre visibile "Cronologia e ripristino", anche durante la creazione di un nuovo preventivo.
+- L'elenco delle modifiche e delle versioni precedenti resta completamente chiuso all'apertura dell'editor.
+- Il pannello si apre solo premendo il pulsante e si richiude premendolo nuovamente.
+- Per un preventivo non ancora salvato, il pannello spiega che lo storico sarà disponibile dopo il primo salvataggio.
+- La barra del pulsante e il pannello cronologia sono esclusi dalla stampa/PDF.
