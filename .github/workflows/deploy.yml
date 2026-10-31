@@ -1,0 +1,135 @@
+name: Deploy Preventivi Pro to GitHub Pages
+
+on:
+  # Pubblica automaticamente ogni aggiornamento integrato nel branch principale.
+  push:
+    branches:
+      - main
+
+  # Le pull request eseguono test e build, ma NON pubblicano il sito.
+  pull_request:
+    branches:
+      - main
+
+  # Consente anche di avviare manualmente una build/deploy dalla scheda Actions.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Le esecuzioni dello stesso branch si sostituiscono: viene pubblicato
+  # l'ultimo commit, evitando deploy simultanei o versioni ormai superate.
+  group: preventivi-pro-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test e compilazione
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install dependencies
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          installed=false
+          for attempt in 1 2 3; do
+            echo "Installazione dipendenze, tentativo ${attempt}/3"
+            if [ -f package-lock.json ]; then
+              if npm ci --no-audit --no-fund --fetch-retries=5 --fetch-timeout=120000; then
+                installed=true
+                break
+              fi
+            else
+              if npm install --no-audit --no-fund --prefer-online --fetch-retries=5 --fetch-timeout=120000; then
+                installed=true
+                break
+              fi
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+          if [ "$installed" != "true" ]; then
+            echo "ERRORE: impossibile installare le dipendenze npm dopo 3 tentativi."
+            exit 1
+          fi
+          npm ls --depth=0
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Build application with Vite
+        run: npm run build
+
+      - name: Verify production output and automatic app updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -d dist/assets
+          test -s dist/sw.js
+          find dist/assets -maxdepth 1 -type f \( -name '*.js' -o -name '*.css' \) -size +0c | grep -q .
+
+          if grep -q 'src/main.jsx' dist/index.html; then
+            echo "ERRORE: nell'HTML pubblicato è rimasto un riferimento al sorgente src/main.jsx."
+            exit 1
+          fi
+
+          worker_asset=$(find dist/assets -maxdepth 1 -type f -name 'pdf.worker*.mjs' -size +100000c -print -quit)
+          if [ -z "$worker_asset" ]; then
+            echo "ERRORE: Vite non ha prodotto l'asset PDF.js Worker atteso (pdf.worker*.mjs)."
+            exit 1
+          fi
+
+          first_char=$(head -c 1 "$worker_asset")
+          if [ "$first_char" = "<" ]; then
+            echo "ERRORE: l'asset PDF.js Worker contiene HTML invece di JavaScript."
+            exit 1
+          fi
+
+          echo "Verifica completata: HTML, bundle React, PDF.js Worker e service worker presenti."
+
+      # Su una pull request controlliamo la build, ma non creiamo un artefatto
+      # destinato alla pubblicazione.
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    name: Pubblicazione GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+
+      - name: Publish website
+        id: deployment
+        uses: actions/deploy-pages@v5
